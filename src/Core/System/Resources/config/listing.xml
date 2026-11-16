@@ -66,6 +66,15 @@
         </input-field>
 
         <input-field type="bool">
+            <name>ignorePresentationOnPriceSorting</name>
+            <label>Ignore storefront presentation on price sorting</label>
+            <label lang="de-DE">Storefront-Darstellung bei Sortierung nach Preis ignorieren</label>
+            <helpText>Activate to ignore the product's "Storefront presentation &gt; Product Listing" configuration in listings sorted by price. Each product shows the variant which determines its position instead: the cheapest matching variant when sorted ascending, the most expensive matching variant when sorted descending.</helpText>
+            <helpText lang="de-DE">Wenn aktiviert, wird die Einstellung des Produkts unter "Storefront-Darstellung &gt; Produktliste" in nach Preis sortierten Listen ignoriert. Stattdessen zeigt jedes Produkt die Variante, die seine Position bestimmt: bei aufsteigender Sortierung die günstigste passende Variante, bei absteigender Sortierung die teuerste passende Variante.</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
             <name>showReview</name>
             <label>Show reviews</label>
             <label lang="de-DE">Bewertungen anzeigen</label>

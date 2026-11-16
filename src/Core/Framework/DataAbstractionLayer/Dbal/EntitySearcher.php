@@ -2,6 +2,7 @@
 
 namespace Shopware\Core\Framework\DataAbstractionLayer\Dbal;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityDefinition;
@@ -80,10 +81,18 @@ class EntitySearcher implements EntitySearcherInterface
             $this->queryHelper->addIdCondition($criteria, $definition, $query);
         }
 
+        $isSortingRanked = !$query->hasState(Criteria::SCORE_FIELD)
+            && $criteria->getGroupFields() !== []
+            && $criteria->hasState(Criteria::STATE_SORTING_RANKED_GROUPING);
+
         if ($query->hasState(Criteria::SCORE_FIELD) && $criteria->getGroupFields() !== []) {
             $query = $this->buildScoreRankedQuery($query, $definition, $criteria, $context, $table, $fields);
         } else {
             $this->queryHelper->addGroupBy($definition, $criteria, $context, $query, $table);
+        }
+
+        if ($isSortingRanked) {
+            $this->addGroupSelects($query, $definition, $criteria, $context, $table);
         }
 
         // add pagination
@@ -107,6 +116,10 @@ class EntitySearcher implements EntitySearcherInterface
 
         if ($criteria->getTotalCountMode() === Criteria::TOTAL_COUNT_MODE_NEXT_PAGES) {
             $rows = \array_slice($rows, 0, $criteria->getLimit());
+        }
+
+        if ($isSortingRanked) {
+            $rows = $this->selectFirstEntityOfGroups($rows, $definition, $criteria, $context, $table, $fields);
         }
 
         $converted = [];
@@ -217,6 +230,84 @@ class EntitySearcher implements EntitySearcherInterface
         $outer->setParameters($query->getParameters(), $query->getParameterTypes());
 
         return $outer;
+    }
+
+    private function addGroupSelects(QueryBuilder $query, EntityDefinition $definition, Criteria $criteria, Context $context, string $table): void
+    {
+        foreach (array_values($criteria->getGroupFields()) as $i => $grouping) {
+            $accessor = $this->queryHelper->getFieldAccessor($grouping->getField(), $definition, $table, $context);
+            $query->addSelect($accessor . ' as `_group_' . $i . '`');
+        }
+    }
+
+    /**
+     * Replaces the arbitrary entity MySQL returns for each group of the page with the first entity of the group in sorting order.
+     * Only the groups of the page are queried.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @param array<string, Field> $fields keyed by storage name
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function selectFirstEntityOfGroups(array $rows, EntityDefinition $definition, Criteria $criteria, Context $context, string $table, array $fields): array
+    {
+        if ($rows === []) {
+            return $rows;
+        }
+
+        $entities = clone $criteria;
+        $entities->resetGroupFields();
+
+        $query = new QueryBuilder($this->connection);
+        foreach ($fields as $storageName => $field) {
+            $query->addSelect(EntityDefinitionQueryHelper::escape($table) . '.' . EntityDefinitionQueryHelper::escape($storageName));
+        }
+
+        $query = $this->criteriaQueryBuilder->build($query, $definition, $entities, $context);
+
+        if ($criteria->getIds() !== []) {
+            $this->queryHelper->addIdCondition($criteria, $definition, $query);
+        }
+
+        $this->queryHelper->addGroupBy($definition, $entities, $context, $query, $table);
+
+        $groupColumns = [];
+        foreach (array_values($criteria->getGroupFields()) as $i => $grouping) {
+            $accessor = $this->queryHelper->getFieldAccessor($grouping->getField(), $definition, $table, $context);
+            $alias = '_group_' . $i;
+            $groupColumns[] = $alias;
+
+            $query->addSelect($accessor . ' as `' . $alias . '`');
+            $query->andWhere($accessor . ' IN (:' . $alias . ')');
+            $query->setParameter($alias, array_values(array_unique(array_column($rows, $alias))), ArrayParameterType::STRING);
+        }
+
+        foreach ($fields as $storageName => $field) {
+            if ($field->is(PrimaryKey::class)) {
+                $query->addOrderBy(EntityDefinitionQueryHelper::escape($table) . '.' . EntityDefinitionQueryHelper::escape($storageName));
+            }
+        }
+
+        $first = [];
+        foreach ($query->executeQuery()->fetchAllAssociative() as $entity) {
+            $first[$this->getGroupKey($entity, $groupColumns)] ??= $entity;
+        }
+
+        $helperColumns = array_flip($groupColumns);
+
+        return array_map(
+            fn (array $row): array => array_diff_key($first[$this->getGroupKey($row, $groupColumns)] ?? $row, $helperColumns),
+            $rows
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param list<string> $groupColumns
+     */
+    private function getGroupKey(array $row, array $groupColumns): string
+    {
+        return implode('-', array_map(static fn (string $column): string => (string) $row[$column], $groupColumns));
     }
 
     private function addTotalCountMode(Criteria $criteria, QueryBuilder $query): void
