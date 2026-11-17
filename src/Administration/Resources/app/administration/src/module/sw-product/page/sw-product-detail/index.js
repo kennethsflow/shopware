@@ -3,6 +3,7 @@
  */
 
 import EntityValidationService from 'src/app/service/entity-validation.service';
+import { syncDocumentVariants } from '../../component/sw-product-document-form/product-document.helper';
 import template from './sw-product-detail.html.twig';
 import errorConfiguration from './error.cfg.json';
 import './sw-product-detail.scss';
@@ -557,7 +558,6 @@ export default {
 
             Shopware.Store.get('swProductDetail').setLoading(['product', true]);
 
-            this.loadLanguage(Shopware.Context.api.languageId);
             await this.initProductMeasurementUnits();
 
             // initialize default state
@@ -817,6 +817,7 @@ export default {
 
         loadProduct() {
             Shopware.Store.get('swProductDetail').setLoading(['product', true]);
+            Shopware.Store.get('swProductDetail').documentVariantOperations = [];
 
             return this.productRepository
                 .get(this.productId || this.product.id, this.productApiContext, this.productCriteria)
@@ -1313,6 +1314,7 @@ export default {
                 // save product
                 this.syncRepository
                     .save(this.product, this.productApiContext)
+                    .then(() => this.saveDocumentVariants())
                     .then(() => {
                         updateSeoUrls();
 
@@ -1338,6 +1340,12 @@ export default {
                         resolve(response);
                     });
             });
+        },
+
+        async saveDocumentVariants() {
+            const store = Shopware.Store.get('swProductDetail');
+            await syncDocumentVariants(this.product.id, store.documentVariantOperations);
+            store.documentVariantOperations = [];
         },
 
         trackProductSaveEvents(productType, productIsNew, productWasActivated) {
@@ -1491,33 +1499,16 @@ export default {
         },
 
         async loadLanguage(newLanguageId) {
-            if (!newLanguageId) {
-                return;
-            }
-
             const criteria = new Criteria();
             criteria.addAssociation('locale');
-            try {
-                const language = await this.languageRepository.get(
-                    newLanguageId,
-                    { ...Shopware.Context.api, inheritance: true },
-                    criteria,
-                );
-
-                if (newLanguageId !== Shopware.Context.api.languageId) {
-                    return;
-                }
-
-                Shopware.Store.get('swProductDetail').documentLanguage = language;
-                Shopware.Store.get('context').api.language = language;
-            } catch {
-                if (newLanguageId === Shopware.Context.api.languageId) {
-                    Shopware.Store.get('swProductDetail').documentLanguage = null;
-                    this.createNotificationError({
-                        message: this.$t('global.notification.notificationLoadingDataErrorMessage'),
-                    });
-                }
-            }
+            Shopware.Store.get('context').api.language = await this.languageRepository.get(
+                newLanguageId,
+                {
+                    ...Shopware.Context.api,
+                    inheritance: true,
+                },
+                criteria,
+            );
         },
 
         async initProductMeasurementUnits() {

@@ -4,6 +4,7 @@
 
 import type EntityCollection from '@shopware-ag/meteor-admin-sdk/es/_internals/data/EntityCollection';
 import type { ContextStore } from '../../../../app/store/context.store';
+import type { DocumentVariantOperation } from '../../component/sw-product-document-form/product-document.helper';
 
 type LoadingProperties =
     | 'init'
@@ -38,8 +39,7 @@ const swProductDetail = Shopware.Store.register({
             product: {} as ProductDetailProduct,
             parentProduct: {} as Entity<'product'>,
             isDownloadExternallyManaged: false,
-            documentMedia: new WeakMap<Entity<'product'>, Record<string, Entity<'media'>>>(),
-            documentLanguage: null as Entity<'language'> | null,
+            documentVariantOperations: [] as DocumentVariantOperation[],
             currencies: [] as Entity<'currency'>[],
             apiContext: {} as ContextStore['api'],
             taxes: [] as Entity<'tax'>[],
@@ -273,16 +273,6 @@ const swProductDetail = Shopware.Store.register({
 
         setWeightUnit(unit: string) {
             this.weightUnit = unit;
-        },
-
-        getDocumentMedia(mediaId: EntityKey<'media'>): Entity<'media'> | undefined {
-            return this.documentMedia.get(this.product)?.[mediaId];
-        },
-
-        cacheDocumentMedia(media: Entity<'media'>): void {
-            const mediaById = this.documentMedia.get(this.product) || {};
-            mediaById[media.id] = media;
-            this.documentMedia.set(this.product, mediaById);
         },
     },
 });

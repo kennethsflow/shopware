@@ -121,7 +121,6 @@
     {% block sw_product_detail_language_switch %}
     <template #language-switch>
         <sw-language-switch
-            ref="languageSwitch"
             :save-changes-function="saveOnLanguageChange"
             :abort-change-function="abortOnLanguageChange"
             :disabled="!productId"
@@ -302,7 +301,6 @@
                 <component
                     :is="Component"
                     @cover-change="onCoverChange"
-                    @language-change="$refs.languageSwitch.onInput($event)"
                 />
             </router-view>
             {% endblock %}
