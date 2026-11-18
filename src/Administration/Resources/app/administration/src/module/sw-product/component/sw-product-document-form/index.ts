@@ -5,10 +5,8 @@ import useSnackbar from 'src/app/composables/use-snackbar';
 import type EntityFactory from 'src/core/data/entity-factory.data';
 import useNotification from 'src/app/composables/use-notification';
 import {
-    allowedExtensions,
-    maxFileSize,
     getUploadHint,
-    getFileAccept,
+    getUploadRules,
     isValidDocumentMedia,
     getFallbackTranslation,
     setDocumentMedia,
@@ -46,7 +44,6 @@ export default Shopware.Component.wrapComponentConfig({
         'repositoryFactory',
         'entityFactory',
         'acl',
-        'fileValidationService',
         'mediaDefaultFolderService',
     ],
 
@@ -66,8 +63,6 @@ export default Shopware.Component.wrapComponentConfig({
             selectedDocuments: [] as Entity<'product_document'>[],
             documentsToRemove: [] as Entity<'product_document'>[],
             defaultLanguageName: null as string | null,
-            allowedExtensions,
-            maxFileSize,
         };
     },
 
@@ -148,8 +143,8 @@ export default Shopware.Component.wrapComponentConfig({
             return getUploadHint(this.$t);
         },
 
-        fileAccept(): string {
-            return getFileAccept(this.fileValidationService.extensionByType);
+        uploadRules(): ReturnType<typeof getUploadRules> {
+            return getUploadRules();
         },
     },
 

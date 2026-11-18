@@ -5,10 +5,8 @@ import { useId, type PropType } from 'vue';
 import useNotification from 'src/app/composables/use-notification';
 import useSnackbar from 'src/app/composables/use-snackbar';
 import {
-    allowedExtensions,
-    maxFileSize,
     getUploadHint,
-    getFileAccept,
+    getUploadRules,
     isValidDocumentMedia,
     getFallbackTranslation,
     getDocumentTitle,
@@ -27,7 +25,6 @@ export default Shopware.Component.wrapComponentConfig({
 
     inject: [
         'repositoryFactory',
-        'fileValidationService',
     ],
 
     props: {
@@ -81,8 +78,6 @@ export default Shopware.Component.wrapComponentConfig({
             hasSubmitted: false,
             isApplying: false,
             showMediaModal: false,
-            allowedExtensions,
-            maxFileSize,
         };
     },
 
@@ -126,8 +121,8 @@ export default Shopware.Component.wrapComponentConfig({
             return this.isDefaultLanguage ? getUploadHint(this.$t) : this.$t('sw-product.documentForm.fileFallbackHint');
         },
 
-        fileAccept(): string {
-            return getFileAccept(this.fileValidationService.extensionByType);
+        uploadRules(): ReturnType<typeof getUploadRules> {
+            return getUploadRules();
         },
 
         isDisabled(): boolean {
