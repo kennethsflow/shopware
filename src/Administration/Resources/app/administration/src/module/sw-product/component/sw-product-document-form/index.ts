@@ -293,16 +293,12 @@ export default Shopware.Component.wrapComponentConfig({
                 };
             }
             if (changes.mediaId !== undefined) {
-                setDocumentMedia(document, media ?? fallbacks.mediaId?.media ?? null);
+                setDocumentMedia(document, changes.mediaId ? media : null);
             }
 
             const translation = document.translations?.find((entry) => entry.languageId === this.languageId);
             if (translation?.isNew()) {
-                Object.assign(
-                    translation,
-                    changes,
-                    changes.mediaId === undefined ? {} : { media: changes.mediaId ? media : null },
-                );
+                Object.assign(translation, changes);
             }
         },
 
@@ -419,7 +415,6 @@ export default Shopware.Component.wrapComponentConfig({
                     translation.title = sourceTranslation.title;
                     translation.customFields = Shopware.Utils.object.cloneDeep(sourceTranslation.customFields);
                     document.translations.add(translation);
-                    translation.media = sourceTranslation.media;
                 });
                 this.documents.add(document);
             });
